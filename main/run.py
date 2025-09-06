@@ -72,33 +72,79 @@ print("✅ Ready! Ask questions about", PDF_FILE)
 
 # Initial suggestions
 suggested_qs = suggest_questions_from_text(chunks[0].page_content, n=5)
-
-
-# ---------- Gradio GUI ----------
-with gr.Blocks() as demo:
+with gr.Blocks(
+    theme=gr.themes.Soft(),
+    css="""
+    /* Suggestion buttons */
+    .suggestion-btn {
+        background-color: #FFC856 !important;  /* bright yellow */
+        color: black !important;
+        border-radius: 12px !important;
+        margin: 4px !important;
+        padding: 8px 14px !important;
+        font-weight: bold;
+    }
+    .suggestion-btn:hover {
+        background-color: #ffe680 !important;
+    }
+    """,
+) as demo:
     gr.Markdown(
-        "# 📘 RAG Tutor (Mistral + PDF + Voice)\nChat with your textbook chapter"
+        """
+    <div style="
+        font-size: 48px; 
+        font-weight: bold; 
+        color: #1a73e8; 
+        text-align: center; 
+        margin-bottom: 10px;
+        font-family: 'Segoe UI', sans-serif;
+    ">
+         AI Enabled Professor
+    </div>
+    <div style="
+        font-size: 16px; 
+        color: light-grey; 
+        text-align: center;
+        margin-bottom: 30px;
+    ">
+        Version 0.0.2
+    </div>
+    """,
+        elem_id="header",
     )
-    gr.Markdown("**Model:** mistral:7b-instruct")
+    with gr.Row():
+        status = gr.Label(label="Status", value="Idle", elem_classes="status")
+        audio_output = gr.Audio(
+            label="Answer Voice (Using Google Text to Speach)",
+            type="filepath",
+            elem_classes="audio",
+        )
 
-    chatbot = gr.Chatbot(height=400)
-    msg = gr.Textbox(label="Ask a question")
-    status = gr.Label(value="Idle ✅")
-    audio_output = gr.Audio(label="🔊 Answer Voice", type="filepath")
+    chatbot = gr.Chatbot(
+        height=400,
+        label="Professor (Mistral 7b-instruct)",
+        elem_classes="chat-container",
+    )
+    msg = gr.Textbox(label="", placeholder="Ask a question", elem_classes="input-tube")
 
-    suggestion_box = gr.Column()
-    with suggestion_box:
-        suggestion_btns = [gr.Button(q) for q in suggested_qs]
+    with gr.Row():
+        suggestion_btns = [
+            gr.Button(q, elem_classes="suggestion-btn") for q in suggested_qs
+        ]
 
     state = gr.State([])
 
+    # ---------- Functions ----------
     def user_message(user_msg, history):
+
         history = history + [(user_msg, None)]
         return "", history
 
     def bot_message(history):
+
         user_msg = history[-1][0]
         start = time.time()
+
         yield history, "⏳ AI is thinking...", None
 
         answer = qa.run(user_msg)
@@ -109,9 +155,7 @@ with gr.Blocks() as demo:
 
     def refresh_suggestions(history):
         if history and history[-1][1]:
-            last_answer = history[-1][1]
-            new_qs = suggest_questions_from_text(last_answer, n=5)
-        else:
+
             new_qs = suggested_qs
         return [gr.update(value=q) for q in new_qs[:5]]
 
@@ -125,5 +169,5 @@ with gr.Blocks() as demo:
         ).then(bot_message, state, [chatbot, status, audio_output]).then(
             refresh_suggestions, state, suggestion_btns
         )
-
-demo.launch()
+demo.queue()
+demo.launch(share=False, debug=True, show_api=False)
