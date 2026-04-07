@@ -2,7 +2,7 @@
 # Conversational RAG with Mistral (Ollama) + Hardcoded PDF + Dynamic Suggestions + Voice
 
 import os
-import time
+import time 
 
 import gradio as gr
 from gtts import gTTS
